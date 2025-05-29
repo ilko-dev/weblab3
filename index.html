@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Casdoor Auth Panel</title>
+    <style>
+        #infoBox {
+            display: none;
+            width: 300px;
+            max-width: 90%;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Casdoor Authentication</h1>
+
+    <div>
+        <button id="loginBtn">Log In</button>
+        <button id="infoBtn">Get Info</button>
+        <button id="logoutBtn">Log Out</button>
+    </div>
+
+    <div id="infoBox" style="display: none; border: 1px solid #ccc; padding: 10px; margin-top: 20px; max-width: 300px;">
+        <div><b>ID: </b><span id="uid">-</span></div>
+        <div><b>Name: </b><span id="uname">-</span></div>
+        <div><b>Surname: </b><span id="usurname">-</span></div>
+        <div><b>Group: </b><span id="ugroup">-</span></div>
+    </div>
+
+    <script>
+        const API = 'https://localhost:7443';
+        let authenticated = false;
+
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const infoBtn = document.getElementById('infoBtn');
+        const infoBox = document.getElementById('infoBox');
+
+        const setText = (id, value) => document.getElementById(id).textContent = value || 'N/A';
+
+        const toggleButtons = () => {
+            loginBtn.disabled = authenticated;
+            logoutBtn.disabled = !authenticated;
+        };
+
+        const renderUserBlock = ({ userId, name, surname, group }) => {
+            setText('uid', userId);
+            setText('uname', name);
+            setText('usurname', surname);
+            setText('ugroup', group);
+            infoBox.style.display = 'block';
+        };
+
+        const clearUserBlock = () => {
+            infoBox.style.display = 'none';
+        };
+
+        const fetchUserInfo = async () => {
+            if (!authenticated) {
+                alert('You must be logged in to view user info.');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API}/user-info`, { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    renderUserBlock(data);
+                } else {
+                    alert('Failed to fetch user info.');
+                    clearUserBlock();
+                }
+            } catch (err) {
+                alert('Error fetching user info: ' + err.message);
+                clearUserBlock();
+            }
+        };
+
+        const handleLogin = async () => {
+            if (authenticated) return;
+            try {
+                const res = await fetch(`${API}/login`);
+                const { url } = await res.json();
+                location.href = url;
+            } catch (err) {
+                alert('Login failed: ' + err.message);
+            }
+        };
+
+        const handleLogout = async () => {
+            if (!authenticated) return;
+            try {
+                const res = await fetch(`${API}/logout`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                if (res.ok) {
+                    authenticated = false;
+                    clearUserBlock();
+                    toggleButtons();
+                } else {
+                    alert('Logout error');
+                }
+            } catch (err) {
+                alert('Logout failed: ' + err.message);
+            }
+        };
+
+        const checkAuthStatus = async () => {
+            try {
+                const res = await fetch(`${API}/user-info`, { credentials: 'include' });
+                authenticated = res.ok;
+            } catch {
+                authenticated = false;
+            } finally {
+                toggleButtons();
+            }
+        };
+
+        loginBtn.addEventListener('click', handleLogin);
+        logoutBtn.addEventListener('click', handleLogout);
+        infoBtn.addEventListener('click', fetchUserInfo);
+        window.addEventListener('load', checkAuthStatus);
+    </script>
+</body>
+
+</html>
